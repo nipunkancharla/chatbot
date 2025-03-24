@@ -1,7 +1,7 @@
 // Configuration (replace these with your values)
 const HF_API_KEY = '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'; // Replace with your Hugging Face API key
 const EMBEDDING_MODEL = 'sentence-transformers/all-MiniLM-L6-v2'; // Embedding model
-const GENERATIVE_MODEL = 'mistralai/Mixtral-8x7B-Instruct-v0.1'; // Generative model
+const GENERATIVE_MODEL = 'meta-llama/Llama-3.2-3B-Instruct'; // Generative model
 
 // Load precomputed document chunks and embeddings
 let data = [];
