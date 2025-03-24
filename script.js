@@ -1,3 +1,8 @@
+// Configuration (replace these with your values)
+const HF_API_KEY = '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'; // Replace with your Hugging Face API key
+const EMBEDDING_MODEL = 'sentence-transformers/all-MiniLM-L6-v2'; // Embedding model
+const GENERATIVE_MODEL = 'mistralai/Mixtral-8x7B-Instruct-v0.1'; // Generative model
+
 // Load precomputed document chunks and embeddings
 let data = [];
 fetch('data.json')
@@ -31,38 +36,68 @@ async function sendMessage() {
         appendMessage('assistant', answer);
     } catch (error) {
         console.error('Error:', error);
-        appendMessage('assistant', 'Error: Could not connect to the server. Please try again later.');
+        appendMessage('assistant', 'Error: Could not process your request. Please try again later.');
     }
 }
 
-// Fetch embedding from external API
+// Fetch embedding from Hugging Face Inference API
 async function getEmbedding(text) {
-    const response = await fetch('https://your-server.com/api/embeddings', {
+    const url = `https://api-inference.huggingface.co/models/${EMBEDDING_MODEL}`;
+    const response = await fetch(url, {
         method: 'POST',
-        headers: { 
+        headers: {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer YOUR_API_KEY'
+            'Authorization': `Bearer ${HF_API_KEY}`
         },
-        body: JSON.stringify({ prompt: text, model: 'your-embedding-model' })
+        body: JSON.stringify({ inputs: text })
     });
-    if (!response.ok) throw new Error('Failed to get embedding');
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to get embedding: ${errorText}`);
+    }
+
     const result = await response.json();
-    return result.data.embedding; // Example adjustment for response structure
+    // Hugging Face embedding models return a list of embeddings; take the first
+    if (Array.isArray(result) && result.length > 0) {
+        return result[0];
+    } else {
+        throw new Error(`Unexpected embedding response: ${JSON.stringify(result)}`);
+    }
 }
 
-// Fetch generated answer from external API
+// Fetch generated answer from Hugging Face Inference API
 async function generateAnswer(prompt) {
-    const response = await fetch('https://your-server.com/api/generate', {
+    const url = `https://api-inference.huggingface.co/models/${GENERATIVE_MODEL}`;
+    const response = await fetch(url, {
         method: 'POST',
-        headers: { 
+        headers: {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer YOUR_API_KEY'
+            'Authorization': `Bearer ${HF_API_KEY}`
         },
-        body: JSON.stringify({ prompt, model: 'your-generative-model' })
+        body: JSON.stringify({
+            inputs: prompt,
+            parameters: {
+                max_new_tokens: 200, // Adjust based on desired output length
+                return_full_text: false // Only return the generated text
+            }
+        })
     });
-    if (!response.ok) throw new Error('Failed to generate answer');
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to generate answer: ${errorText}`);
+    }
+
     const result = await response.json();
-    return result.data.text; // Example adjustment for response structure
+    // Handle different response formats from generative models
+    if (Array.isArray(result) && result.length > 0 && result[0].generated_text) {
+        return result[0].generated_text.trim();
+    } else if (typeof result === 'string') {
+        return result.trim();
+    } else {
+        throw new Error(`Unexpected generation response: ${JSON.stringify(result)}`);
+    }
 }
 
 // Cosine similarity-based retrieval
